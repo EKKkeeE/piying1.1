@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>手势皮影 · 孙悟空</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <div id="stage" class="stage" aria-hidden="true"></div>
+
+      <div id="stage-interaction" class="stage-interaction" aria-hidden="true">
+        <canvas id="string-canvas"></canvas>
+      </div>
+
+      <div id="puppet-mount-player" class="puppet-mount"></div>
+
+      <div id="stage-curtain" class="stage-curtain" aria-hidden="true"></div>
+
+      <div id="camera-panel" class="camera-panel">
+        <video id="camera" playsinline muted autoplay></video>
+        <canvas id="debug-canvas" class="debug-canvas"></canvas>
+      </div>
+
+      <div id="start-overlay" class="start-overlay">
+        <div class="start-card">
+          <h1>手势皮影 · 孙悟空</h1>
+          <p class="tips">举起<strong>左手</strong>：移动掌心走位，五指牵动头与四肢</p>
+          <button id="start-btn" type="button">举起左手，开始演出</button>
+          <p id="error-box" class="error-box" hidden></p>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>部件预览 · 孙悟空</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        background: #222;
+        color: #eee;
+        padding: 1rem;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1rem;
+      }
+      .card {
+        background: #333;
+        padding: 0.5rem;
+        border-radius: 8px;
+        text-align: center;
+      }
+      .card img {
+        max-width: 100%;
+        background: repeating-conic-gradient(#444 0% 25%, #555 0% 50%) 50% / 16px 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>孙悟空部件预览</h1>
+    <p>运行 <code>python tools/process_assets.py</code> 重新生成部件。</p>
+    <div class="grid" id="grid"></div>
+    <script>
+      const parts = ["torso", "arm_l", "arm_r", "leg_l", "leg_r"];
+      const grid = document.getElementById("grid");
+      for (const p of parts) {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `<img src="../assets/wukong/${p}.png" alt="${p}"><p>${p}</p>`;
+        grid.appendChild(card);
+      }
+    </script>
+  </body>
+</html>
