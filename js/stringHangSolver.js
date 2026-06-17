@@ -15,12 +15,12 @@ export function holeAt(pivot, holeOffset, angleDeg) {
 
 /** 二连杆搜索步长 */
 const CHAIN_SOLVE_STEP = 0.5;
-/** 同分候选里优先接近上一帧的解 */
-const CONTINUITY_WEIGHT = 0.55;
+/** 同分候选里优先接近上一帧的解（越低越灵敏） */
+const CONTINUITY_WEIGHT = 0.18;
 /** score 接近最优时仍视为同一档，在此档内选 continuity 最小 */
 const SCORE_TIE_EPS = 2.5;
 /** 先在上一帧角度附近搜索，避免全范围跳解 */
-const LOCAL_SEARCH_DEG = 20;
+const LOCAL_SEARCH_DEG = 36;
 
 function shortestAngleDelta(a, b) {
   let d = ((a - b + 180) % 360) - 180;

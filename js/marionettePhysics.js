@@ -28,10 +28,10 @@ export class MarionetteBone {
         x: opts.holeOffset.x * 0.55,
         y: opts.holeOffset.y * 0.65 + 12,
       };
-    this.inertia = opts.inertia ?? 1.1;
-    this.damping = opts.damping ?? 4.8;
+    this.inertia = opts.inertia ?? 0.75;
+    this.damping = opts.damping ?? 1.2;
     this.gravity = opts.gravity ?? 820;
-    this.stringK = opts.stringK ?? 58;
+    this.stringK = opts.stringK ?? 92;
     this.hangSpring = opts.hangSpring ?? 110;
     this.minRot = opts.minRot ?? -88;
     this.maxRot = opts.maxRot ?? 88;

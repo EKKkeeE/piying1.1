@@ -36,7 +36,7 @@ const FINGER_ZONE = { xMin: 0.04, xMax: 0.96, yMin: 0.08, yMax: 0.92 };
 const LINE_HEAD_ID = "line_head";
 /** 中指（MP 空间）：静止强抑抖，一旦在动就跟手 */
 const HEAD_MP_STILL = 0.08;
-const HEAD_MP_MOVE = 0.58;
+const HEAD_MP_MOVE = 0.88;
 
 /** MediaPipe 归一化坐标差 → 舞台像素偏移 */
 function mpDeltaToStage(dmx, dmy, stageRect, mirrorX = true) {
@@ -103,14 +103,14 @@ const ACTIVE_MOVE_PX = 12;
 const BURST_MOVE_PX = 32;
 const FINGER_NOISE_PX = 4;
 const LOCAL_MP_STILL = 0.06;
-const LOCAL_MP_MOVE = 0.52;
+const LOCAL_MP_MOVE = 0.86;
 /** 平移停下后锁定四肢 IK 时长（ms） */
-const SETTLE_HOLD_MS = 220;
+const SETTLE_HOLD_MS = 90;
 /** 舞台 px/s：高于此视为正在平移 */
 const TRANSLATE_VEL_ENTER = 100;
 /** 低于此且曾在平移 → 进入 settle */
 const TRANSLATE_VEL_EXIT = 32;
-const MP_BLEND_SMOOTH = 0.12;
+const MP_BLEND_SMOOTH = 0.38;
 const DISPLAY_SNAP_PX = 2.5;
 /** 四肢响应参数更快渐变，避免肘膝跟手迟滞 */
 const LIMB_RESPONSE_BLEND_KEYS = new Set([
@@ -134,13 +134,13 @@ export const FINGERTIPS = {
 
 const TIP_NAMES = ["thumb", "index", "middle", "ring", "pinky"];
 const TIP_INDICES = [4, 8, 12, 16, 20];
-const DEFAULT_RESPONSE_GAIN = { tight: 1.45, slack: 1.45 };
+const DEFAULT_RESPONSE_GAIN = { tight: 1.85, slack: 1.45 };
 const BINDING_RESPONSE_GAIN = {
-  line_head: { tight: 1.85, slack: 0.95 },
-  line_wrist_r: { tight: 2.0, slack: 1.05 },
-  line_wrist_l: { tight: 1.75, slack: 1.05 },
-  line_leg_l: { tight: 2.1, slack: 0.9 },
-  line_leg_r: { tight: 2.1, slack: 0.9 },
+  line_head: { tight: 2.35, slack: 0.95 },
+  line_wrist_r: { tight: 2.55, slack: 1.05 },
+  line_wrist_l: { tight: 2.2, slack: 1.05 },
+  line_leg_l: { tight: 2.65, slack: 0.9 },
+  line_leg_r: { tight: 2.65, slack: 0.9 },
 };
 /** 示意图：躯干可被四肢拉斜，求解范围略大于 rig 配置 */
 const TORSO_SOLVE_MIN = -52;
@@ -375,8 +375,8 @@ export class FingerMarionette {
   _applyGravityChain(rig, layout, bonesOut, active) {
     const controlled = this._controlledParts();
     layout.refresh(true);
-    const alpha = active ? 0.22 : 0.14;
-    const maxDelta = active ? 14 : 10;
+    const alpha = active ? 0.42 : 0.28;
+    const maxDelta = active ? 28 : 18;
 
     for (const partName of GRAVITY_CHAIN) {
       if (controlled.has(partName)) continue;
@@ -514,7 +514,7 @@ export class FingerMarionette {
     }
     const out = this._blendedResponse;
     for (const key of Object.keys(target)) {
-      const rate = LIMB_RESPONSE_BLEND_KEYS.has(key) ? 18 : 10;
+      const rate = LIMB_RESPONSE_BLEND_KEYS.has(key) ? 34 : 18;
       const k = 1 - Math.exp(-rate * Math.max(0, dt));
       out[key] = out[key] + (target[key] - out[key]) * k;
     }
@@ -577,38 +577,38 @@ export class FingerMarionette {
   _motionResponse(maxMovePx, handStill = false, settling = false, palmVel = 0) {
     if (settling) {
       return {
-        rootSpeed: 11,
-        torsoSpeed: 4,
-        limbSpeed: 4,
-        limbChildSpeed: 5,
-        fingerSpeed: 14,
-        limbFingerSpeed: 14,
-        torsoMaxDelta: 4,
-        limbMaxDelta: 5,
-        limbChildMaxDelta: 6,
+        rootSpeed: 14,
+        torsoSpeed: 8,
+        limbSpeed: 10,
+        limbChildSpeed: 14,
+        fingerSpeed: 22,
+        limbFingerSpeed: 22,
+        torsoMaxDelta: 10,
+        limbMaxDelta: 14,
+        limbChildMaxDelta: 18,
         reachBoost: 0,
         slackScale: 1,
-        chainContinuity: 0.55,
-        chainSearchDeg: 20,
-        chainChildContinuity: 1,
+        chainContinuity: 0.22,
+        chainSearchDeg: 28,
+        chainChildContinuity: 0.45,
       };
     }
     if (handStill) {
       return {
-        rootSpeed: 5,
-        torsoSpeed: 5,
-        limbSpeed: 5,
-        limbChildSpeed: 5,
-        fingerSpeed: 4,
-        limbFingerSpeed: 4,
-        torsoMaxDelta: 5,
-        limbMaxDelta: 6,
-        limbChildMaxDelta: 6,
+        rootSpeed: 7,
+        torsoSpeed: 8,
+        limbSpeed: 10,
+        limbChildSpeed: 12,
+        fingerSpeed: 6,
+        limbFingerSpeed: 6,
+        torsoMaxDelta: 10,
+        limbMaxDelta: 12,
+        limbChildMaxDelta: 14,
         reachBoost: 0,
         slackScale: 1,
-        chainContinuity: 0.55,
-        chainSearchDeg: 20,
-        chainChildContinuity: 1,
+        chainContinuity: 0.22,
+        chainSearchDeg: 28,
+        chainChildContinuity: 0.45,
       };
     }
     const burst =
@@ -617,55 +617,55 @@ export class FingerMarionette {
       palmVel > 55 || maxMovePx > ACTIVE_MOVE_PX;
     if (burst) {
       return {
-        rootSpeed: 22,
-        torsoSpeed: 16,
-        limbSpeed: 22,
-        limbChildSpeed: 38,
-        fingerSpeed: 30,
-        limbFingerSpeed: 30,
-        torsoMaxDelta: 22,
-        limbMaxDelta: 44,
-        limbChildMaxDelta: 76,
-        reachBoost: 0.38,
+        rootSpeed: 30,
+        torsoSpeed: 24,
+        limbSpeed: 42,
+        limbChildSpeed: 68,
+        fingerSpeed: 42,
+        limbFingerSpeed: 42,
+        torsoMaxDelta: 38,
+        limbMaxDelta: 88,
+        limbChildMaxDelta: 140,
+        reachBoost: 0.48,
         slackScale: 0.3,
-        chainContinuity: 0.22,
-        chainSearchDeg: 42,
-        chainChildContinuity: 0.32,
+        chainContinuity: 0.06,
+        chainSearchDeg: 52,
+        chainChildContinuity: 0.1,
       };
     }
     if (active) {
       return {
-        rootSpeed: 14,
-        torsoSpeed: 11,
-        limbSpeed: 19,
-        limbChildSpeed: 32,
-        fingerSpeed: 26,
-        limbFingerSpeed: 26,
-        torsoMaxDelta: 18,
-        limbMaxDelta: 36,
-        limbChildMaxDelta: 62,
-        reachBoost: 0.28,
+        rootSpeed: 20,
+        torsoSpeed: 18,
+        limbSpeed: 36,
+        limbChildSpeed: 58,
+        fingerSpeed: 36,
+        limbFingerSpeed: 36,
+        torsoMaxDelta: 30,
+        limbMaxDelta: 72,
+        limbChildMaxDelta: 118,
+        reachBoost: 0.38,
         slackScale: 0.45,
-        chainContinuity: 0.28,
-        chainSearchDeg: 34,
-        chainChildContinuity: 0.38,
+        chainContinuity: 0.1,
+        chainSearchDeg: 44,
+        chainChildContinuity: 0.14,
       };
     }
     return {
-      rootSpeed: 9,
-      torsoSpeed: 8,
-      limbSpeed: 17,
-      limbChildSpeed: 26,
-      fingerSpeed: 20,
-      limbFingerSpeed: 24,
-      torsoMaxDelta: 14,
-      limbMaxDelta: 30,
-      limbChildMaxDelta: 50,
-      reachBoost: 0.14,
+      rootSpeed: 14,
+      torsoSpeed: 14,
+      limbSpeed: 32,
+      limbChildSpeed: 50,
+      fingerSpeed: 30,
+      limbFingerSpeed: 34,
+      torsoMaxDelta: 24,
+      limbMaxDelta: 62,
+      limbChildMaxDelta: 102,
+      reachBoost: 0.22,
       slackScale: 0,
-      chainContinuity: 0.38,
-      chainSearchDeg: 28,
-      chainChildContinuity: 0.5,
+      chainContinuity: 0.14,
+      chainSearchDeg: 36,
+      chainChildContinuity: 0.2,
     };
   }
 
@@ -1330,7 +1330,7 @@ export class FingerMarionette {
             Math.abs(parentLimb.restAngle) > 0.5
               ? parentLimb.restAngle
               : hangP;
-          parentLimb.angle = smoothAngle(parentLimb.angle, idleP, 0.12, 20);
+          parentLimb.angle = smoothAngle(parentLimb.angle, idleP, 0.32, 36);
           bonesOut[parentName] = parentLimb.angle;
         }
         const hang = solveGravityHangAngle(
@@ -1340,7 +1340,7 @@ export class FingerMarionette {
         );
         const idleTarget =
           Math.abs(limb.restAngle) > 0.5 ? limb.restAngle : hang;
-        limb.angle = smoothAngle(limb.angle, idleTarget, 0.12, 20);
+        limb.angle = smoothAngle(limb.angle, idleTarget, 0.32, 36);
         bonesOut[binding.part] = limb.angle;
       }
 
@@ -1351,7 +1351,7 @@ export class FingerMarionette {
           torsoLimb,
           headBinding ?? { hangJoint: "root" }
         );
-        torsoLimb.angle = smoothAngle(torsoLimb.angle, hang, 0.12, 10);
+        torsoLimb.angle = smoothAngle(torsoLimb.angle, hang, 0.32, 18);
         bonesOut.torso = torsoLimb.angle;
         rig.displayRotations.torso = torsoLimb.angle;
       }
