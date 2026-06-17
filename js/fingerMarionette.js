@@ -146,7 +146,7 @@ const BINDING_RESPONSE_GAIN = {
 const TORSO_SOLVE_MIN = -52;
 const TORSO_SOLVE_MAX = 52;
 const TORSO_GRAVITY_BIAS = 0.28;
-const TORSO_TORQUE_GAIN = 0.055;
+const TORSO_TORQUE_GAIN = 0.092;
 /** 提线拴在子段时，对应躯干上的受力枢轴（肩/髋） */
 const CHAIN_TORSO_MOUNT = {
   lower_arm_l: "shoulder_l",
@@ -154,6 +154,19 @@ const CHAIN_TORSO_MOUNT = {
   shin_l: "hip_l",
   shin_r: "hip_r",
 };
+/** 肩/肘/髋关节额外响应倍率（越大跟手越快、单帧转角越大） */
+const JOINT_SENSITIVITY = {
+  upper_arm_l: { speed: 2.35, maxDelta: 2.15 },
+  upper_arm_r: { speed: 2.35, maxDelta: 2.15 },
+  lower_arm_l: { speed: 2.1, maxDelta: 2.0 },
+  lower_arm_r: { speed: 2.1, maxDelta: 2.0 },
+  thigh_l: { speed: 2.35, maxDelta: 2.15 },
+  thigh_r: { speed: 2.35, maxDelta: 2.15 },
+};
+/** 二连杆 IK：父段（肩/髋）连续性权重，越低越灵敏 */
+const PARENT_CHAIN_CONTINUITY = 0.32;
+/** 手臂子段（肘）连续性权重；腿部子段（膝）保持原值 */
+const ELBOW_CHAIN_CONTINUITY_SCALE = 0.38;
 function shortestAngleDelta(a, b) {
   let d = ((a - b + 180) % 360) - 180;
   if (d < -180) d += 360;
@@ -304,11 +317,15 @@ export class FingerMarionette {
 
     const baseLen = bindingStringLengthAsm(layout, binding, childLimb);
     const reachBoost = response?.reachBoost ?? 0;
-    const stringLen = baseLen * Math.max(0.48, 1 - reachBoost);
+    const stringLen = baseLen * Math.max(0.42, 1 - reachBoost);
+    const isArm = childName.startsWith("lower_arm");
     const chainOpts = {
       continuityWeight: response?.chainContinuity,
-      localSearchDeg: response?.chainSearchDeg,
-      childContinuityScale: response?.chainChildContinuity,
+      localSearchDeg: (response?.chainSearchDeg ?? 36) * 1.45,
+      childContinuityScale: isArm
+        ? (response?.chainChildContinuity ?? 0.2) * ELBOW_CHAIN_CONTINUITY_SCALE
+        : response?.chainChildContinuity,
+      parentContinuityScale: PARENT_CHAIN_CONTINUITY,
     };
 
     const solved = solveReachChainStringAngles(
@@ -1212,7 +1229,7 @@ export class FingerMarionette {
       const limb = this.limbs.get(name);
       if (!limb) continue;
       const isChild = CHAIN_CHILD_PARTS.has(name);
-      if (this._moveDirect && isChild) {
+      if (this._moveDirect && (isChild || JOINT_SENSITIVITY[name])) {
         limb.angle = target;
         bonesOut[name] = limb.angle;
         continue;
@@ -1223,12 +1240,15 @@ export class FingerMarionette {
       const maxDelta = isChild
         ? (response.limbChildMaxDelta ?? response.limbMaxDelta * 1.35)
         : response.limbMaxDelta;
+      const jointGain = JOINT_SENSITIVITY[name];
+      const effSpeed = speed * (jointGain?.speed ?? 1);
+      const effMaxDelta = maxDelta * (jointGain?.maxDelta ?? 1);
       limb.angle = smoothAngleExp(
         limb.angle,
         target,
-        speed,
+        effSpeed,
         dt,
-        maxDelta
+        effMaxDelta
       );
       bonesOut[name] = limb.angle;
     }

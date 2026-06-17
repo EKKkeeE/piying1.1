@@ -72,12 +72,14 @@ function searchReachWindow(
   caMin,
   caMax,
   continuityWeight = CONTINUITY_WEIGHT,
-  childContinuityScale = 1
+  childContinuityScale = 1,
+  parentContinuityScale = 1
 ) {
   const useLen = stringLen > 0;
   const EPS = 0.8;
   const candidates = [];
   const childCont = Math.max(0, childContinuityScale);
+  const parentCont = Math.max(0, parentContinuityScale);
 
   for (
     let pa = paMin;
@@ -93,7 +95,7 @@ function searchReachWindow(
       if (!end) continue;
       const dist = Math.hypot(end.x - finger.x, end.y - finger.y);
       const cont =
-        Math.abs(shortestAngleDelta(pa, parent.prevAngle)) +
+        Math.abs(shortestAngleDelta(pa, parent.prevAngle)) * parentCont +
         Math.abs(shortestAngleDelta(ca, child.prevAngle)) * childCont;
       candidates.push({
         parent: pa,
@@ -235,7 +237,7 @@ export function solveChainStringAngles(
 /**
  * 绷紧提线：末端孔朝指尖靠拢；若给定 stringLen，则尽量保持该线长（更长 = 孔位离指尖更远）。
  * @param {number} [stringLen] 装配空间目标线长，0 表示尽量贴近指尖
- * @param {{ continuityWeight?: number, localSearchDeg?: number, childContinuityScale?: number }} [opts]
+ * @param {{ continuityWeight?: number, localSearchDeg?: number, childContinuityScale?: number, parentContinuityScale?: number }} [opts]
  */
 export function solveReachChainStringAngles(
   finger,
@@ -248,6 +250,7 @@ export function solveReachChainStringAngles(
   const continuityWeight = opts.continuityWeight ?? CONTINUITY_WEIGHT;
   const localSearchDeg = opts.localSearchDeg ?? LOCAL_SEARCH_DEG;
   const childContinuityScale = opts.childContinuityScale ?? 1;
+  const parentContinuityScale = opts.parentContinuityScale ?? 1;
 
   const local = searchReachWindow(
     finger,
@@ -260,7 +263,8 @@ export function solveReachChainStringAngles(
     clampRange(child.prevAngle - localSearchDeg, child.minRot, child.maxRot),
     clampRange(child.prevAngle + localSearchDeg, child.minRot, child.maxRot),
     continuityWeight,
-    childContinuityScale
+    childContinuityScale,
+    parentContinuityScale
   );
   if (local) {
     return {
@@ -280,7 +284,8 @@ export function solveReachChainStringAngles(
     child.minRot,
     child.maxRot,
     continuityWeight,
-    childContinuityScale
+    childContinuityScale,
+    parentContinuityScale
   );
   if (full) {
     return {

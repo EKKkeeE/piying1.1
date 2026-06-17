@@ -335,18 +335,18 @@ async function startExperience() {
 
     els.startOverlay.classList.add("hidden");
 
-    running = true;
-    lastTs = 0;
-    simAccum = 0;
-    cancelAnimationFrame(animId);
-    animId = requestAnimationFrame(loop);
-
     if (!curtainAnim && els.stageCurtain) {
       curtainAnim = new CurtainAnimation(els.stageCurtain);
     }
     if (!bgm) bgm = new BgmPlayer();
     bgm.scheduleStart(3000);
     await curtainAnim?.play();
+
+    running = true;
+    lastTs = 0;
+    simAccum = 0;
+    cancelAnimationFrame(animId);
+    animId = requestAnimationFrame(loop);
     if (DEBUG) {
       document.getElementById("camera-panel")?.classList.add("debug-on");
     }

@@ -21,6 +21,10 @@ export class CurtainAnimation {
     this.loaded = false;
     this.playing = false;
     this.lastFrameIndex = -1;
+    /** @type {Promise<void> | null} */
+    this._preloadPromise = null;
+    /** @type {Promise<void> | null} */
+    this._playPromise = null;
   }
 
   resize() {
@@ -43,6 +47,10 @@ export class CurtainAnimation {
     const w = this.mount.clientWidth;
     const h = this.mount.clientHeight;
     if (w <= 0 || h <= 0) return;
+    if (this.canvas.width <= 0 || this.canvas.height <= 0) {
+      this.resize();
+      if (this.canvas.width <= 0 || this.canvas.height <= 0) return;
+    }
 
     const iw = img.naturalWidth;
     const ih = img.naturalHeight;
@@ -58,39 +66,67 @@ export class CurtainAnimation {
 
   async preload() {
     if (this.loaded) return;
-    const tasks = [];
-    for (let i = 1; i <= FRAME_COUNT; i += 1) {
-      const img = new Image();
-      img.decoding = "async";
-      img.src = `assets/bg/curtain/frame-${String(i).padStart(2, "0")}.png`;
-      tasks.push(
-        (async () => {
-          await new Promise((resolve, reject) => {
-            img.onload = () => resolve(undefined);
-            img.onerror = () => reject(new Error(`无法加载幕布帧 ${i}`));
-          });
-          if (img.decode) {
-            await img.decode().catch(() => {});
-          }
-        })()
-      );
-      this.frames.push(img);
+    if (this._preloadPromise) return this._preloadPromise;
+
+    this._preloadPromise = (async () => {
+      const tasks = [];
+      const frames = [];
+      for (let i = 1; i <= FRAME_COUNT; i += 1) {
+        const img = new Image();
+        img.decoding = "async";
+        img.src = `assets/bg/curtain/frame-${String(i).padStart(2, "0")}.png`;
+        frames.push(img);
+        tasks.push(
+          (async () => {
+            await new Promise((resolve, reject) => {
+              img.onload = () => resolve(undefined);
+              img.onerror = () => reject(new Error(`无法加载幕布帧 ${i}`));
+            });
+            if (img.decode) {
+              await img.decode().catch(() => {});
+            }
+          })()
+        );
+      }
+      await Promise.all(tasks);
+      this.frames = frames;
+      this.loaded = true;
+    })();
+
+    try {
+      await this._preloadPromise;
+    } finally {
+      this._preloadPromise = null;
     }
-    await Promise.all(tasks);
-    this.loaded = true;
   }
 
-  /** 等待布局完成，避免开场时 mount 尺寸为 0 导致 Canvas 无法绘制 */
-  _waitLayout() {
-    return new Promise((resolve) => {
-      requestAnimationFrame(() => requestAnimationFrame(resolve));
-    });
+  /** 等待 mount 获得有效尺寸，避免 Canvas 无法绘制 */
+  async _waitLayout() {
+    for (let i = 0; i < 120; i += 1) {
+      if (this.mount.clientWidth > 0 && this.mount.clientHeight > 0) {
+        return;
+      }
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+  }
+
+  /** 确保 Canvas 已按当前布局完成缩放并绘制指定帧 */
+  _prepareFrame(img) {
+    this.resize();
+    if (!img || this.canvas.width <= 0 || this.canvas.height <= 0) {
+      return false;
+    }
+    this.drawFrame(img);
+    return true;
   }
 
   /** @returns {Promise<void>} */
   play() {
-    if (this.playing) return Promise.resolve();
-    return this._play();
+    if (this._playPromise) return this._playPromise;
+    this._playPromise = this._play().finally(() => {
+      this._playPromise = null;
+    });
+    return this._playPromise;
   }
 
   async _play() {
@@ -106,15 +142,17 @@ export class CurtainAnimation {
       this.lastFrameIndex = -1;
 
       await this._waitLayout();
-      this.resize();
       if (this.frames[0]) {
         this.lastFrameIndex = 0;
-        this.drawFrame(this.frames[0]);
+        if (!this._prepareFrame(this.frames[0])) {
+          await this._waitLayout();
+          this._prepareFrame(this.frames[0]);
+        }
       }
 
       this.audio.currentTime = 0;
       const audioPromise = this.audio.play().catch(() => {});
-      const totalMs = this.frames.length * FRAME_MS;
+      const totalMs = FRAME_COUNT * FRAME_MS;
       const start = performance.now();
 
       await new Promise((resolve) => {
@@ -122,7 +160,7 @@ export class CurtainAnimation {
           const elapsed = now - start;
           const index = Math.min(
             Math.floor(elapsed / FRAME_MS),
-            this.frames.length - 1
+            FRAME_COUNT - 1
           );
           if (index !== this.lastFrameIndex) {
             this.lastFrameIndex = index;
@@ -180,14 +218,16 @@ export class CurtainAnimation {
       this.lastFrameIndex = -1;
 
       await this._waitLayout();
-      this.resize();
-      const firstClose = this.frames[this.frames.length - 1];
+      const firstClose = this.frames[FRAME_COUNT - 1];
       if (firstClose) {
-        this.lastFrameIndex = this.frames.length - 1;
-        this.drawFrame(firstClose);
+        this.lastFrameIndex = FRAME_COUNT - 1;
+        if (!this._prepareFrame(firstClose)) {
+          await this._waitLayout();
+          this._prepareFrame(firstClose);
+        }
       }
 
-      const totalMs = this.frames.length * FRAME_MS;
+      const totalMs = FRAME_COUNT * FRAME_MS;
       const start = performance.now();
 
       await new Promise((resolve) => {
@@ -195,9 +235,9 @@ export class CurtainAnimation {
           const elapsed = now - start;
           const forwardIndex = Math.min(
             Math.floor(elapsed / FRAME_MS),
-            this.frames.length - 1
+            FRAME_COUNT - 1
           );
-          const index = this.frames.length - 1 - forwardIndex;
+          const index = FRAME_COUNT - 1 - forwardIndex;
           if (index !== this.lastFrameIndex) {
             this.lastFrameIndex = index;
             this.drawFrame(this.frames[index]);
