@@ -516,11 +516,8 @@ export class FingerMarionette {
   /** 移动中直跟：跳过 display/root 二次滤波，消除相对位移假抖 */
   _shouldMoveDirect(motion, palmVel, settling, handStill) {
     if (settling || handStill) return false;
-    return (
-      this._translating ||
-      palmVel > TRANSLATE_VEL_EXIT ||
-      motion > STILL_MOVE_PX
-    );
+    // 仅在明确的整手平移状态下直跟，避免慢速平移被噪声频繁触发。
+    return this._translating && palmVel > TRANSLATE_VEL_EXIT;
   }
 
   /** 运动响应参数渐变，避免 default↔active↔burst 硬切 */
@@ -840,7 +837,7 @@ export class FingerMarionette {
     this._fingerAssembly.clear();
 
     let maxFingerMove = 0;
-    let palmMove = 999;
+    let palmMove = 0;
 
     const controlIdx = this._findHandIndex("left", handedness);
     if (controlIdx >= 0 && landmarks[controlIdx]) {
@@ -1003,7 +1000,7 @@ export class FingerMarionette {
       );
     }
 
-    this._updateTranslateSettle(now, palmMove, since, layout);
+    this._updateTranslateSettle(now, Math.max(0, palmMove), since, layout);
 
     if (this._translating) {
       this._mpMotionBlend = 1;
