@@ -34,6 +34,8 @@ const CHAIN_CHILD_PARTS = new Set([
 
 const FINGER_ZONE = { xMin: 0.04, xMax: 0.96, yMin: 0.08, yMax: 0.92 };
 const LINE_HEAD_ID = "line_head";
+/** 低速平移时，直跟会把检测噪声直接映射到骨骼，默认关闭。 */
+const ENABLE_MOVE_DIRECT = false;
 /** 中指（MP 空间）：静止强抑抖，一旦在动就跟手 */
 const HEAD_MP_STILL = 0.05;
 const HEAD_MP_MOVE = 0.88;
@@ -515,6 +517,7 @@ export class FingerMarionette {
 
   /** 移动中直跟：跳过 display/root 二次滤波，消除相对位移假抖 */
   _shouldMoveDirect(motion, palmVel, settling, handStill) {
+    if (!ENABLE_MOVE_DIRECT) return false;
     if (settling || handStill) return false;
     // 仅在明确的整手平移状态下直跟，避免慢速平移被噪声频繁触发。
     return this._translating && palmVel > TRANSLATE_VEL_EXIT;
@@ -870,7 +873,8 @@ export class FingerMarionette {
 
     if (controlIdx >= 0 && landmarks[controlIdx]) {
       handLm = landmarks[controlIdx];
-      midLm = handLm[12] ?? handLm[9] ?? null;
+      // 以中指 MCP(9) 为主控锚点，比指尖(12)稳定，慢速平移不易抖。
+      midLm = handLm[9] ?? handLm[12] ?? handLm[0] ?? null;
       if (midLm) {
         const prevMidMp = this._smoothMiddleMp;
         const midMoveMp = prevMidMp
