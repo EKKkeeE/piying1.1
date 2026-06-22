@@ -703,9 +703,12 @@ export class FingerMarionette {
             ? response.fingerSpeed
             : response.limbFingerSpeed;
         next = smoothPointExp(prev, tgt, speed, dt);
-        const dx = next.x - tgt.x;
-        const dy = next.y - tgt.y;
-        if (Math.hypot(dx, dy) < FINGER_NOISE_PX) {
+        // 注意：此处不再用 FINGER_NOISE_PX（5px）做 snap-to-target。
+        // 原来的 snap 逻辑：只要 |prev-tgt|*(1-k) < 5px，即 |prev-tgt| < 10.6px 时就直接
+        // 跳到 tgt，完全绕过 smoothPointExp 的平滑效果——手静止时始终满足此条件，
+        // 导致 displayFinger ≡ fingerStage，任何噪声原样传入 IK，造成剧烈抖动。
+        // 改为 0.5px（亚像素）门限：仅在浮点收敛的最后阶段 snap，平滑全程有效。
+        if (Math.hypot(next.x - tgt.x, next.y - tgt.y) < 0.5) {
           next = { x: tgt.x, y: tgt.y };
         }
       }
