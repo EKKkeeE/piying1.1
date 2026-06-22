@@ -1093,7 +1093,13 @@ export class FingerMarionette {
     if (!head) return this._torsoHangAngle(torsoLimb);
 
     const saved = { ...rig.displayRotations };
-    rig.displayRotations.torso = torsoLimb.angle;
+    // 使用中性角(0)计算肩/髋挂载点，而非 torsoLimb.angle。
+    // 原因：torsoLimb.angle 会通过 getJointAssemblyByKey 影响肩髋坐标，
+    // 进而影响力矩与目标角，形成 angle→mount→torque→target→angle 的反馈环路。
+    // 当反馈增益 |dT/dA| > 2/k-1 ≈ 4.87 时，离散更新产生周期-2 振荡
+    //（每步在两个角度之间来回跳跃），即观察到的躯干剧烈抖动。
+    // 使用固定参考角(0)使 T(A) 与 A 无关，彻底消除此反馈。
+    rig.displayRotations.torso = 0;
     let torque = 0;
 
     for (const binding of this.bindings) {
@@ -1130,7 +1136,19 @@ export class FingerMarionette {
 
     Object.assign(rig.displayRotations, saved);
 
-    const hang = this._torsoHangAngle(torsoLimb);
+    // 修正悬挂角：使用 hangJoint（躯干下端重心参考点）相对头部旋转轴的偏移量。
+    // 原来用 torsoLimb.holeOffset={x:0,y:0}（因头部绑定点==旋转轴，偏移为零），
+    // solveGravityHangAngle 对零偏移返回 minRot（-28°），造成约-7.8°的错误偏置。
+    // 正确参考点为 hangJoint="root"（躯干底部），相对头部偏移约(19,494)，
+    // 自然垂挂角约+2°，基线偏置缩小为约+0.6°。
+    const hangKey = headBinding?.hangJoint ?? "root";
+    const hangMassJoint = torsoPart?.joints?.[hangKey];
+    const hangOffset =
+      hangMassJoint
+        ? { x: hangMassJoint[0] - head[0], y: hangMassJoint[1] - head[1] }
+        : torsoLimb.holeOffset;
+    const hang = solveGravityHangAngle(hangOffset, TORSO_SOLVE_MIN, TORSO_SOLVE_MAX);
+
     const torqueGain = this._translating
       ? TORSO_TORQUE_GAIN_MOVE
       : TORSO_TORQUE_GAIN;
