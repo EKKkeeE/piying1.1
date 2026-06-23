@@ -261,12 +261,11 @@ export class BindingPhase {
     return [...names];
   }
 
-  /** 手离开凹槽：牵线断裂、已绑定部件回灰、进度清零 */
+  /** 手离开凹槽：牵线断裂、已绑定部件回灰、进度清零（仅绑定未完成时） */
   _breakBinding(hasHand) {
     const hadProgress =
       this.boundIds.size > 0 ||
       this.state === "binding" ||
-      this.state === "shakePrompt" ||
       this.bindProgress > 0.02;
     const parts = this._getRestoredPartNames();
     if (parts.length) {
@@ -330,14 +329,11 @@ export class BindingPhase {
     }
 
     const mustStayInGroove =
-      this.state === "holding" ||
-      this.state === "binding" ||
-      this.state === "shakePrompt";
+      this.state === "holding" || this.state === "binding";
 
     if (mustStayInGroove && !inGroove) {
       if (
         this.state === "binding" ||
-        this.state === "shakePrompt" ||
         this.boundIds.size > 0 ||
         this.bindProgress > 0.02
       ) {
@@ -405,21 +401,26 @@ export class BindingPhase {
       strings = this._buildBindingStrings(rig, stageRect, handData.tips);
     }
 
-    if (this.state === "shakePrompt" && inGroove && handData?.tips) {
+    if (this.state === "shakePrompt") {
       pulseShake = true;
       glowEdge = true;
       hintText = "剧烈晃动左手，拯救孙悟空！";
-      strings = this._buildAllStrings(rig, stageRect, handData.tips);
+      const bindTips = handData?.tips ?? this._lastTips;
+      if (bindTips && rig) {
+        strings = this._buildAllStrings(rig, stageRect, bindTips);
+      }
 
-      const shakePts = [
-        handData.wrist,
-        ...FINGER_ORDER.map((f) => handData.tips[f]),
-      ].filter(Boolean);
-      if (this.shakeDetector.feed(shakePts, performance.now())) {
-        this.state = "shattering";
-        this.shatterTriggered = true;
-        this.onShatterStart();
-        this.sfx.playShatter();
+      if (handData?.tips) {
+        const shakePts = [
+          handData.wrist,
+          ...FINGER_ORDER.map((f) => handData.tips[f]),
+        ].filter(Boolean);
+        if (this.shakeDetector.feed(shakePts, performance.now())) {
+          this.state = "shattering";
+          this.shatterTriggered = true;
+          this.onShatterStart();
+          this.sfx.playShatter();
+        }
       }
     }
 
