@@ -18,19 +18,21 @@ const GLYPH_LAYOUT = [
 
 export class RescueSuccessOverlay {
   /**
-   * @param {HTMLElement | null} root
+   * @param {HTMLElement | null} root 光效层（皮影下层）
+   * @param {HTMLElement | null} titleLayer 大字层（皮影上层）
    * @param {HTMLElement | null} stageEl
    * @param {{ onFlash?: () => void, onCharStamp?: (i: number) => void, onClimax?: () => void, onFinish?: () => void }} [hooks]
    */
-  constructor(root, stageEl, hooks = {}) {
+  constructor(root, titleLayer, stageEl, hooks = {}) {
     this.root = root;
+    this.titleLayer = titleLayer;
     this.stageEl = stageEl;
     this.hooks = hooks;
     this.raysEl = root?.querySelector(".rescue-success-rays") ?? null;
     this.flashCoreEl = root?.querySelector(".rescue-success-flash-core") ?? null;
     this.flashEl = root?.querySelector(".rescue-success-flash") ?? null;
     this.climaxEl = root?.querySelector(".rescue-success-climax") ?? null;
-    this.titleEl = root?.querySelector(".rescue-success-title") ?? null;
+    this.titleEl = titleLayer?.querySelector(".rescue-success-title") ?? null;
     this.charEls = [...(this.titleEl?.querySelectorAll(".rescue-char") ?? [])];
     this._applyGlyphLayout();
     this.state = "idle";
@@ -69,6 +71,11 @@ export class RescueSuccessOverlay {
         "rescue-overlay-fade"
       );
     }
+    if (this.titleLayer) {
+      this.titleLayer.hidden = true;
+      this.titleLayer.setAttribute("aria-hidden", "true");
+      this.titleLayer.classList.remove("rescue-title-layer-active");
+    }
     this.flashCoreEl?.classList.remove("rescue-flash-core-on");
     this.flashEl?.classList.remove("rescue-flash-on");
     this.raysEl?.classList.remove("rescue-rays-on");
@@ -97,6 +104,11 @@ export class RescueSuccessOverlay {
     this.root.setAttribute("aria-hidden", "false");
     this.root.classList.add("rescue-success-active");
     this.root.classList.remove("rescue-overlay-fade");
+    if (this.titleLayer) {
+      this.titleLayer.hidden = false;
+      this.titleLayer.setAttribute("aria-hidden", "false");
+      this.titleLayer.classList.add("rescue-title-layer-active");
+    }
     this.raysEl?.classList.add("rescue-rays-on");
     this.flashCoreEl?.classList.add("rescue-flash-core-on");
     this.flashEl?.classList.add("rescue-flash-on");
@@ -175,6 +187,11 @@ export class RescueSuccessOverlay {
         "rescue-rays-on",
         "rescue-overlay-fade"
       );
+    }
+    if (this.titleLayer) {
+      this.titleLayer.hidden = true;
+      this.titleLayer.setAttribute("aria-hidden", "true");
+      this.titleLayer.classList.remove("rescue-title-layer-active");
     }
     this.climaxEl?.classList.remove("rescue-climax-on");
     this.titleEl?.classList.remove("rescue-title-in", "rescue-title-out");

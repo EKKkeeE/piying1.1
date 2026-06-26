@@ -90,6 +90,7 @@ const els = {
     document.getElementById("stone-shatter-canvas")
   ),
   rescueSuccess: document.getElementById("rescue-success"),
+  rescueSuccessTitleLayer: document.getElementById("rescue-success-title-layer"),
 };
 
 function showError(msg) {
@@ -836,11 +837,16 @@ async function startExperience() {
     stringLines.resize();
 
     await initPuppet();
-    rescueSuccess = new RescueSuccessOverlay(els.rescueSuccess, els.stage, {
+    rescueSuccess = new RescueSuccessOverlay(
+      els.rescueSuccess,
+      els.rescueSuccessTitleLayer,
+      els.stage,
+      {
       onFlash: onRescueFlash,
       onCharStamp: onRescueCharStamp,
       onClimax: onRescueClimax,
-    });
+      }
+    );
     initBindingPhase();
 
     els.startOverlay.classList.add("hidden");

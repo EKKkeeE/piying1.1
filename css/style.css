@@ -284,13 +284,22 @@ body {
   pointer-events: none;
 }
 
-/* 解救成功通关层：背景与提线之上、皮影之下（z-index 4 < puppet 5） */
+/* 解救成功通关层：光效在皮影下层（z-index 4 < puppet 5） */
 .rescue-success {
   position: absolute;
   inset: 0;
   z-index: 4;
   pointer-events: none;
   overflow: hidden;
+}
+
+/* 通关大字：皮影上层 */
+.rescue-success-title-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  overflow: visible;
 }
 
 .rescue-success-rays {
@@ -437,7 +446,6 @@ body {
   position: absolute;
   left: 50%;
   top: 42%;
-  z-index: 5;
   transform: translate(-50%, -50%);
   width: min(92vw, 54rem);
   aspect-ratio: 1469 / 547;
@@ -454,7 +462,8 @@ body {
   transform: scale(1.42);
   transform-origin: center center;
   clip-path: circle(0% at 50% 50%);
-  filter: drop-shadow(0 3px 12px rgba(0, 0, 0, 0.35));
+  filter: drop-shadow(0 2px 8px rgba(80, 40, 0, 0.45))
+    drop-shadow(0 0 14px rgba(255, 196, 72, 0.35));
 }
 
 .rescue-char.rescue-char-in {
@@ -470,28 +479,31 @@ body {
     opacity: 0;
     transform: scale(1.42);
     clip-path: circle(0% at 50% 50%);
-    filter: blur(3px) drop-shadow(0 0 0 rgba(255, 200, 60, 0));
+    filter: blur(3px) drop-shadow(0 0 0 rgba(255, 196, 72, 0));
   }
   28% {
     opacity: 0.98;
     transform: scale(0.88);
     clip-path: circle(72% at 50% 50%);
     filter: blur(0)
-      drop-shadow(0 0 28px rgba(255, 210, 80, 0.85))
-      drop-shadow(0 6px 20px rgba(0, 0, 0, 0.5));
+      drop-shadow(0 0 32px rgba(255, 210, 90, 0.9))
+      drop-shadow(0 0 18px rgba(255, 168, 40, 0.75))
+      drop-shadow(0 6px 20px rgba(60, 30, 0, 0.5));
   }
   52% {
     opacity: 0.97;
     transform: scale(1.02);
     clip-path: circle(100% at 50% 50%);
-    filter: drop-shadow(0 0 18px rgba(255, 200, 60, 0.55))
-      drop-shadow(0 4px 16px rgba(0, 0, 0, 0.42));
+    filter: drop-shadow(0 0 22px rgba(255, 200, 70, 0.65))
+      drop-shadow(0 0 12px rgba(255, 150, 30, 0.45))
+      drop-shadow(0 4px 16px rgba(50, 25, 0, 0.42));
   }
   100% {
     opacity: 0.95;
     transform: scale(1);
     clip-path: circle(100% at 50% 50%);
-    filter: drop-shadow(0 3px 12px rgba(0, 0, 0, 0.35));
+    filter: drop-shadow(0 2px 8px rgba(80, 40, 0, 0.45))
+      drop-shadow(0 0 14px rgba(255, 196, 72, 0.35));
   }
 }
 
