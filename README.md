@@ -4,7 +4,7 @@
 
 ## 在线体验
 
-部署完成后访问：**https://EKKkeeE.github.io/piying1/**
+部署完成后访问：**https://EKKkeeE.github.io/piying1.1/**
 
 > 需使用 **HTTPS** 页面才能调用摄像头（GitHub Pages 已满足）。请用 Chrome 或 Edge 打开，并允许摄像头权限。
 

@@ -5,6 +5,8 @@ import { SHAKE_AUDIO_START_PX } from "./shakeDetect.js";
 const SHAKE_INTENSITY_REF = 280;
 const SHATTER_RUMBLE_S = 0.62;
 const IMPACT_AUDIO_URL = "assets/audio/stone-shatter-impact.mp3";
+const ARRIVAL_AUDIO_URL = "assets/audio/wukong-arrival.mp3";
+const ARRIVAL_DELAY_MS = 500;
 
 function _makeBrownNoiseBuffer(ctx, seconds = 3) {
   const n = Math.max(1, Math.floor(ctx.sampleRate * seconds));
@@ -54,6 +56,10 @@ export class StoneShatterAudio {
     this._impactLoadPromise = null;
     /** @type {AudioBufferSourceNode | null} */
     this._impactSource = null;
+    /** @type {HTMLAudioElement | null} */
+    this._arrival = null;
+    /** @type {number | null} */
+    this._arrivalTimer = null;
   }
 
   unlock() {
@@ -68,6 +74,34 @@ export class StoneShatterAudio {
       void this.ctx.resume();
     }
     void this._loadImpactBuffer();
+    if (!this._arrival) {
+      this._arrival = new Audio(ARRIVAL_AUDIO_URL);
+      this._arrival.preload = "auto";
+    }
+  }
+
+  /** 石板碎裂后延迟播放：俺老孙来也 */
+  playArrival() {
+    this._clearArrivalTimer();
+    this._arrivalTimer = window.setTimeout(() => {
+      this._arrivalTimer = null;
+      if (!this._arrival) {
+        this._arrival = new Audio(ARRIVAL_AUDIO_URL);
+        this._arrival.preload = "auto";
+      }
+      const el = this._arrival;
+      el.currentTime = 0;
+      void el.play().catch((err) => {
+        console.warn("[StoneShatterAudio] 登场语音播放失败", err);
+      });
+    }, ARRIVAL_DELAY_MS);
+  }
+
+  _clearArrivalTimer() {
+    if (this._arrivalTimer != null) {
+      window.clearTimeout(this._arrivalTimer);
+      this._arrivalTimer = null;
+    }
   }
 
   async _loadImpactBuffer() {
@@ -545,6 +579,11 @@ export class StoneShatterAudio {
   }
 
   stop() {
+    this._clearArrivalTimer();
+    if (this._arrival) {
+      this._arrival.pause();
+      this._arrival.currentTime = 0;
+    }
     if (this._impactSource) {
       try {
         this._impactSource.stop();

@@ -1,4 +1,4 @@
-/** 大圣归来演出音效：opening + 逐字鼓点采样 + 鼓声结束后 BGM */
+/** 挑战成功演出音效：opening + 逐字鼓点采样 + 鼓声结束后 BGM */
 
 const OPENING_URL = "assets/audio/opening.mp3";
 const DRUM_URL = "assets/audio/rescue-drum.mp3";

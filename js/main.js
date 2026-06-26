@@ -461,6 +461,7 @@ function startShatter() {
     stoneSlab.canvas,
     {
       onImpact: () => {
+        stoneShatterAudio?.playArrival();
         unlockPuppetRootPosition();
         revealStageBackground();
         stoneSlab.hideSlab();
