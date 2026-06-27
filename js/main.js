@@ -90,7 +90,7 @@ const els = {
     document.getElementById("stone-shatter-canvas")
   ),
   rescueSuccess: document.getElementById("rescue-success"),
-  rescueSuccessTitleLayer: document.getElementById("rescue-success-title-layer"),
+  rescueSuccessTitle: document.getElementById("rescue-success-title"),
 };
 
 function showError(msg) {
@@ -462,10 +462,10 @@ function startShatter() {
     stoneSlab.canvas,
     {
       onImpact: () => {
-        stoneShatterAudio?.playArrival();
         unlockPuppetRootPosition();
         revealStageBackground();
         stoneSlab.hideSlab();
+        stoneShatterAudio?.scheduleWukongVoice();
         rescueSuccess?.triggerAtImpact();
       },
     }
@@ -839,14 +839,13 @@ async function startExperience() {
     await initPuppet();
     rescueSuccess = new RescueSuccessOverlay(
       els.rescueSuccess,
-      els.rescueSuccessTitleLayer,
       els.stage,
+      els.rescueSuccessTitle,
       {
       onFlash: onRescueFlash,
       onCharStamp: onRescueCharStamp,
       onClimax: onRescueClimax,
-      }
-    );
+    });
     initBindingPhase();
 
     els.startOverlay.classList.add("hidden");
