@@ -99,23 +99,102 @@ body {
   position: absolute;
   inset: 0;
   z-index: 1;
-  background: transparent;
   overflow: hidden;
+  background-color: #120e0a;
+}
+
+.stone-slab-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  pointer-events: none;
+  z-index: 0;
+  filter: brightness(1.14) contrast(1.06) saturate(1.05);
+}
+
+.stone-groove-wrap {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+  overflow: visible;
+  opacity: 0;
+}
+
+.stone-groove-wrap[data-layout-ready="true"] {
+  opacity: 1;
+}
+
+.stone-groove-overlay {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform: scaleX(-1);
+  transform-origin: center center;
+  filter: drop-shadow(0 0 6px rgba(255, 200, 60, 0.55));
+  transition: filter 0.1s ease-out;
+}
+
+.stone-groove-wrap.groove-edge-glow .stone-groove-overlay,
+.stone-groove-overlay.groove-edge-glow {
+  filter:
+    drop-shadow(0 0 10px rgba(255, 200, 60, 0.8))
+    drop-shadow(0 0 20px rgba(255, 160, 40, 0.35));
+}
+
+.stone-groove-wrap.groove-breathe .stone-groove-overlay {
+  animation: groove-breathe 1.15s ease-in-out infinite;
+}
+
+.stone-groove-wrap.groove-pulse-shake .stone-groove-overlay {
+  animation: groove-pulse-shake 0.42s ease-in-out infinite;
+}
+
+@keyframes groove-breathe {
+  0%, 100% {
+    filter:
+      drop-shadow(0 0 8px rgba(255, 200, 60, 0.35))
+      drop-shadow(0 0 18px rgba(255, 160, 40, 0.15));
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 22px rgba(255, 220, 90, 0.95))
+      drop-shadow(0 0 48px rgba(255, 180, 50, 0.55));
+  }
+}
+
+@keyframes groove-pulse-shake {
+  0%, 100% {
+    filter: drop-shadow(0 0 14px rgba(255, 200, 60, 0.7));
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 28px rgba(255, 220, 100, 1))
+      drop-shadow(0 0 52px rgba(255, 170, 40, 0.5));
+  }
+}
+
+.stone-slab-composite {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  visibility: hidden;
+  z-index: -1;
+}
+
+.stone-slab-canvas {
+  display: none;
 }
 
 .stage-stone.stone-hidden {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.4s ease;
-}
-
-.stone-slab-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
-  pointer-events: none;
 }
 
 .stone-shatter-canvas {
@@ -130,6 +209,7 @@ body {
 .stage-stone.stone-shattering {
   z-index: 1;
   will-change: transform;
+  background-color: transparent;
 }
 
 .stage-stone.stone-shattering,

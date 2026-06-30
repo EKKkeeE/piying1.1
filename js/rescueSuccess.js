@@ -4,7 +4,7 @@ const FLASH_MS = 550;
 const TITLE_DELAY_MS = 2000;
 const CHAR_STAGGER_MS = 420;
 const CHAR_IN_MS = 580;
-const HOLD_MS = 3200;
+const HOLD_MS = 1500;
 const FADE_OUT_MS = 3200;
 const CHAR_COUNT = 4;
 

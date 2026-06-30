@@ -1,9 +1,10 @@
 /**
- * 阶段1巨型石板 + 手形凹槽渲染
+ * 阶段1巨型石板：石板底图 + 抠图凹槽叠层（皮影在更上层，不在此处理）
  */
 
-const SLAB_IMG = "assets/bg/stone/slab.jpg";
+const SLAB_IMG = "assets/bg/stone/slab.jpg?v=4";
 const GROOVE_IMG = "assets/bg/stone/hand_groove.png";
+const GROOVE_CUTOUT_IMG = "assets/bg/stone/hand_groove_cutout.png?v=16";
 /** 凹槽相对 cover 尺寸的缩放（<1 缩小） */
 const GROOVE_SCALE = 0.82;
 
@@ -11,246 +12,121 @@ export class StoneSlab {
   /** @param {HTMLElement} mount */
   constructor(mount) {
     this.mount = mount;
-    this.canvas = document.createElement("canvas");
-    this.canvas.className = "stone-slab-canvas";
-    this.mount.appendChild(this.canvas);
+
+    this.bgEl =
+      mount.querySelector(".stone-slab-bg") ?? this._createImg("stone-slab-bg");
+    this.grooveWrap =
+      mount.querySelector(".stone-groove-wrap") ?? this._createGrooveWrap();
+    this.grooveEl =
+      this.grooveWrap.querySelector(".stone-groove-overlay") ??
+      this._createGrooveImg();
+    this.canvas =
+      mount.querySelector(".stone-slab-composite") ??
+      this._createCompositeCanvas();
+
+    if (!this.bgEl.parentElement) mount.appendChild(this.bgEl);
+    if (!this.grooveWrap.parentElement) mount.appendChild(this.grooveWrap);
+    if (!this.grooveEl.parentElement) this.grooveWrap.appendChild(this.grooveEl);
+    if (!this.canvas.parentElement) mount.appendChild(this.canvas);
+
     this.ctx = this.canvas.getContext("2d");
     /** @type {HTMLImageElement | null} */
     this.slabImg = null;
     /** @type {HTMLImageElement | null} */
     this.grooveImg = null;
-    this._loadPromise = this._loadImages();
+    /** @type {HTMLImageElement | null} */
+    this.grooveCutout = null;
+
     this._w = 0;
     this._h = 0;
     this._pulseT = 0;
-    /** @type {HTMLCanvasElement | null} */
-    this._grooveCutMask = null;
-    /** @type {HTMLCanvasElement | null} */
-    this._grooveGlow = null;
-    /** @type {HTMLCanvasElement | null} */
-    this._grooveDepth = null;
-    /** @type {HTMLCanvasElement | null} */
-    this._grooveRelief = null;
-    /** @type {HTMLCanvasElement | null} */
-    this._grooveInnerShadow = null;
-    /** @type {HTMLCanvasElement | null} */
-    this._grooveRimLight = null;
+    this._loadPromise = this._loadImages();
   }
 
-  /** 内壁阴影：边缘暗、中心相对亮 */
-  _buildInnerShadow(cut, w, h) {
-    const edge = document.createElement("canvas");
-    edge.width = w;
-    edge.height = h;
-    const ectx = edge.getContext("2d");
-    if (!ectx) return null;
-
-    const blur = document.createElement("canvas");
-    blur.width = w;
-    blur.height = h;
-    const bctx = blur.getContext("2d");
-    bctx.filter = "blur(11px)";
-    bctx.drawImage(cut, 0, 0);
-    bctx.filter = "none";
-
-    ectx.drawImage(blur, 0, 0);
-    ectx.globalCompositeOperation = "destination-in";
-    ectx.drawImage(cut, 0, 0);
-    ectx.globalCompositeOperation = "source-atop";
-
-    const rim = ectx.createRadialGradient(
-      w * 0.5,
-      h * 0.44,
-      Math.min(w, h) * 0.18,
-      w * 0.5,
-      h * 0.48,
-      Math.max(w, h) * 0.52
-    );
-    rim.addColorStop(0, "rgba(255,255,255,0)");
-    rim.addColorStop(0.58, "rgba(255,255,255,0)");
-    rim.addColorStop(0.82, "rgba(40,32,26,0.75)");
-    rim.addColorStop(1, "rgba(0,0,0,0.95)");
-    ectx.fillStyle = rim;
-    ectx.fillRect(0, 0, w, h);
-    return edge;
+  _createGrooveWrap() {
+    const wrap = document.createElement("div");
+    wrap.className = "stone-groove-wrap";
+    wrap.setAttribute("aria-hidden", "true");
+    return wrap;
   }
 
-  /** 凹槽深浅渐变（multiply 用：越暗压得越狠） */
-  _buildReliefShading(cut, w, h) {
-    const relief = document.createElement("canvas");
-    relief.width = w;
-    relief.height = h;
-    const ctx = relief.getContext("2d");
-    if (!ctx) return null;
-
-    ctx.fillStyle = "#b8aea4";
-    ctx.fillRect(0, 0, w, h);
-    ctx.globalCompositeOperation = "destination-in";
-    ctx.drawImage(cut, 0, 0);
-    ctx.globalCompositeOperation = "source-atop";
-
-    const vgrad = ctx.createLinearGradient(0, 0, 0, h);
-    vgrad.addColorStop(0, "rgba(255,255,255,0.45)");
-    vgrad.addColorStop(0.35, "rgba(120,108,96,0.35)");
-    vgrad.addColorStop(0.72, "rgba(40,34,28,0.7)");
-    vgrad.addColorStop(1, "rgba(0,0,0,0.82)");
-    ctx.fillStyle = vgrad;
-    ctx.fillRect(0, 0, w, h);
-
-    const rgrad = ctx.createRadialGradient(
-      w * 0.5,
-      h * 0.56,
-      Math.min(w, h) * 0.04,
-      w * 0.5,
-      h * 0.52,
-      Math.max(w, h) * 0.42
-    );
-    rgrad.addColorStop(0, "rgba(0,0,0,0.72)");
-    rgrad.addColorStop(0.55, "rgba(50,42,36,0.35)");
-    rgrad.addColorStop(1, "rgba(255,255,255,0)");
-    ctx.fillStyle = rgrad;
-    ctx.fillRect(0, 0, w, h);
-    return relief;
+  _createGrooveImg() {
+    const img = document.createElement("img");
+    img.className = "stone-groove-overlay";
+    img.alt = "";
+    img.decoding = "async";
+    img.draggable = false;
+    return img;
   }
 
-  /** 上沿内缘高光（斜顶光） */
-  _buildRimLight(glow, cut, w, h) {
-    const rim = document.createElement("canvas");
-    rim.width = w;
-    rim.height = h;
-    const ctx = rim.getContext("2d");
-    if (!ctx) return null;
-
-    ctx.save();
-    ctx.translate(-3, -5);
-    ctx.drawImage(glow, 0, 0);
-    ctx.restore();
-    ctx.globalCompositeOperation = "destination-in";
-    ctx.drawImage(cut, 0, 0);
-    ctx.globalCompositeOperation = "source-atop";
-    ctx.fillStyle = "rgba(255, 236, 190, 0.72)";
-    ctx.fillRect(0, 0, w, h);
-    ctx.globalCompositeOperation = "destination-in";
-    ctx.drawImage(glow, 0, 0);
-    return rim;
+  /** @param {string} className */
+  _createImg(className) {
+    const img = document.createElement("img");
+    img.className = className;
+    img.alt = "";
+    img.decoding = "async";
+    img.draggable = false;
+    return img;
   }
 
-  /** 凹槽内壁暗线 */
-  _buildGrooveLip(cut, w, h) {
-    const lip = document.createElement("canvas");
-    lip.width = w;
-    lip.height = h;
-    const ctx = lip.getContext("2d");
-    if (!ctx) return null;
-
-    ctx.filter = "blur(3px)";
-    ctx.drawImage(cut, 0, 0);
-    ctx.filter = "none";
-    ctx.globalCompositeOperation = "source-out";
-    ctx.drawImage(cut, 0, 0);
-    ctx.globalCompositeOperation = "source-in";
-    ctx.fillStyle = "rgba(12, 10, 8, 0.9)";
-    ctx.fillRect(0, 0, w, h);
-    return lip;
+  _createCompositeCanvas() {
+    const canvas = document.createElement("canvas");
+    canvas.className = "stone-slab-composite";
+    canvas.setAttribute("hidden", "");
+    canvas.setAttribute("aria-hidden", "true");
+    return canvas;
   }
 
-  /** 从凹槽图分离：手形镂空遮罩 + 纯发光边缘（去掉矩形深色底） */
-  _buildGrooveLayers() {
-    const img = this.grooveImg;
-    if (!img) return;
-
-    const w = img.width;
-    const h = img.height;
-    const src = document.createElement("canvas");
-    src.width = w;
-    src.height = h;
-    const sctx = src.getContext("2d");
-    if (!sctx) return;
-    sctx.drawImage(img, 0, 0);
-    const raw = sctx.getImageData(0, 0, w, h);
-
-    const cut = document.createElement("canvas");
-    cut.width = w;
-    cut.height = h;
-    const cutData = cut.getContext("2d").createImageData(w, h);
-
-    const glow = document.createElement("canvas");
-    glow.width = w;
-    glow.height = h;
-    const glowData = glow.getContext("2d").createImageData(w, h);
-
-    for (let i = 0; i < raw.data.length; i += 4) {
-      const r = raw.data[i];
-      const g = raw.data[i + 1];
-      const b = raw.data[i + 2];
-      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-      const warm = r + g > b * 1.35 + 40;
-
-      if (lum > 88 && warm) {
-        const a = Math.min(255, (lum - 70) * 2.2);
-        glowData.data[i] = r;
-        glowData.data[i + 1] = g;
-        glowData.data[i + 2] = b;
-        glowData.data[i + 3] = a;
-      } else if (lum >= 36 && lum <= 92) {
-        cutData.data[i] = 255;
-        cutData.data[i + 1] = 255;
-        cutData.data[i + 2] = 255;
-        cutData.data[i + 3] = Math.min(255, (lum - 30) * 4.5);
-      }
-    }
-
-    cut.getContext("2d").putImageData(cutData, 0, 0);
-    glow.getContext("2d").putImageData(glowData, 0, 0);
-
-    this._grooveCutMask = cut;
-    this._grooveGlow = glow;
-    this._grooveRelief = this._buildReliefShading(cut, w, h);
-    this._grooveInnerShadow = this._buildInnerShadow(cut, w, h);
-    this._grooveRimLight = this._buildRimLight(glow, cut, w, h);
-    this._grooveDepth = this._buildGrooveLip(cut, w, h);
-  }
-
-  /**
-   * @param {CanvasRenderingContext2D} ctx
-   * @param {HTMLCanvasElement} layer
-   * @param {{ mirrorX?: boolean, alpha?: number, blend?: GlobalCompositeOperation }} opts
-   */
-  _drawGrooveLayer(ctx, layer, opts = {}) {
-    const { dx, dy, dw, dh } = this._grooveRect(this.grooveImg);
-    const { mirrorX = true, alpha = 1, blend = "source-over" } = opts;
-
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.globalCompositeOperation = blend;
-    if (mirrorX) {
-      ctx.translate(dx + dw, dy);
-      ctx.scale(-1, 1);
-      ctx.drawImage(layer, 0, 0, dw, dh);
-    } else {
-      ctx.drawImage(layer, dx, dy, dw, dh);
-    }
-    ctx.restore();
+  /** @param {string} src */
+  _loadDomImage(el, src) {
+    return new Promise((resolve) => {
+      let settled = false;
+      const done = () => {
+        if (settled) return;
+        settled = true;
+        resolve(el.naturalWidth > 0 ? el : null);
+      };
+      el.addEventListener("load", done, { once: true });
+      el.addEventListener("error", done, { once: true });
+      el.src = src;
+      if (el.complete) done();
+    });
   }
 
   async _loadImages() {
-    const load = (src) =>
+    const loadMeta = (src) =>
       new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve(img);
-        img.onerror = reject;
+        img.onerror = () => reject(new Error(`image load failed: ${src}`));
         img.src = src;
       });
-    try {
-      [this.slabImg, this.grooveImg] = await Promise.all([
-        load(SLAB_IMG),
-        load(GROOVE_IMG),
-      ]);
-      this._buildGrooveLayers();
-    } catch {
-      this.slabImg = null;
-      this.grooveImg = null;
+
+    const [slabEl, cutoutEl, metaResult] = await Promise.all([
+      this._loadDomImage(this.bgEl, SLAB_IMG),
+      this._loadDomImage(this.grooveEl, GROOVE_CUTOUT_IMG),
+      Promise.allSettled([loadMeta(GROOVE_IMG)]).then(([r]) => r),
+    ]);
+
+    this.slabImg = slabEl;
+    if (!this.slabImg) console.warn("[StoneSlab] 石板图加载失败", SLAB_IMG);
+
+    this.grooveCutout = cutoutEl;
+    if (!this.grooveCutout) {
+      console.warn("[StoneSlab] 凹槽抠图加载失败", GROOVE_CUTOUT_IMG);
+      this.grooveWrap.hidden = true;
+    } else {
+      this.grooveWrap.hidden = false;
     }
+
+    if (metaResult.status === "fulfilled") {
+      this.grooveImg = metaResult.value;
+    } else {
+      this.grooveImg = this.grooveCutout;
+      console.warn("[StoneSlab] 凹槽定位图加载失败，改用抠图尺寸", metaResult.reason);
+    }
+
+    this._applyGrooveLayout();
   }
 
   resize() {
@@ -258,11 +134,12 @@ export class StoneSlab {
     const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
     this._w = rect.width;
     this._h = rect.height;
-    this.canvas.width = rect.width * dpr;
-    this.canvas.height = rect.height * dpr;
+    this.canvas.width = Math.max(1, rect.width * dpr);
+    this.canvas.height = Math.max(1, rect.height * dpr);
     this.canvas.style.width = `${rect.width}px`;
     this.canvas.style.height = `${rect.height}px`;
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this._applyGrooveLayout();
   }
 
   /** @param {HTMLImageElement} img */
@@ -291,13 +168,27 @@ export class StoneSlab {
     };
   }
 
+  _applyGrooveLayout() {
+    const ref = this.grooveImg ?? this.grooveCutout;
+    if (!ref || !this.grooveCutout || this._w <= 0) return;
+
+    const gr = this._grooveRect(ref);
+    const wrap = this.grooveWrap;
+    wrap.style.left = `${gr.dx}px`;
+    wrap.style.top = `${gr.dy}px`;
+    wrap.style.width = `${gr.dw}px`;
+    wrap.style.height = `${gr.dh}px`;
+    wrap.dataset.layoutReady = "true";
+  }
+
   /**
    * @param {number} [stageW]
    * @param {number} [stageH]
    */
   getGrooveBounds(stageW = this._w, stageH = this._h) {
-    if (this.grooveImg && stageW > 0 && stageH > 0) {
-      const gr = this._grooveRect(this.grooveImg, stageW, stageH);
+    const ref = this.grooveImg ?? this.grooveCutout;
+    if (ref && stageW > 0 && stageH > 0) {
+      const gr = this._grooveRect(ref, stageW, stageH);
       return {
         x0: gr.dx,
         y0: gr.dy,
@@ -326,8 +217,9 @@ export class StoneSlab {
 
   /** @returns {{ cx: number, cy: number, r: number }} */
   _grooveGeometry(w = this._w, h = this._h) {
-    if (this.grooveImg && w > 0 && h > 0) {
-      const gr = this._grooveRect(this.grooveImg, w, h);
+    const ref = this.grooveImg ?? this.grooveCutout;
+    if (ref && w > 0 && h > 0) {
+      const gr = this._grooveRect(ref, w, h);
       return {
         cx: gr.dx + gr.dw / 2,
         cy: gr.dy + gr.dh / 2,
@@ -341,348 +233,67 @@ export class StoneSlab {
     };
   }
 
-  /**
-   * @param {CanvasRenderingContext2D} ctx
-   * @param {HTMLImageElement} img
-   * @param {{ mirrorX?: boolean, alpha?: number, glow?: boolean, glowAlpha?: number, glowBlur?: number }} opts
-   */
-  _drawCoverImage(ctx, img, opts = {}) {
+  /** @param {CanvasRenderingContext2D} ctx @param {HTMLImageElement} img */
+  _drawSlabOnCanvas(ctx, img) {
     const { dx, dy, dw, dh } = this._coverRect(img);
-    const {
-      mirrorX = false,
-      alpha = 1,
-      glow = false,
-      glowAlpha = 0.6,
-      glowBlur = 16,
-    } = opts;
-
     ctx.save();
-    ctx.globalAlpha = alpha;
-    if (glow) {
-      ctx.shadowColor = `rgba(255, 200, 60, ${glowAlpha})`;
-      ctx.shadowBlur = glowBlur;
-    }
-    if (mirrorX) {
-      ctx.translate(dx + dw, dy);
-      ctx.scale(-1, 1);
-      ctx.drawImage(img, 0, 0, dw, dh);
-    } else {
-      ctx.drawImage(img, dx, dy, dw, dh);
-    }
+    ctx.filter = "brightness(1.14) contrast(1.06) saturate(1.05)";
+    ctx.drawImage(img, dx, dy, dw, dh);
     ctx.restore();
   }
 
-  /**
-   * @param {CanvasRenderingContext2D} ctx
-   * @param {{ alpha?: number, glow?: boolean, glowAlpha?: number, glowBlur?: number, warm?: boolean }} opts
-   */
-  _drawGrooveGlow(ctx, opts = {}) {
-    if (!this._grooveGlow) return;
-    const {
-      alpha = 0.9,
-      glow = false,
-      glowAlpha = 0.6,
-      glowBlur = 16,
-      warm = true,
-    } = opts;
+  /** @param {CanvasRenderingContext2D} ctx */
+  _drawGrooveOnCanvas(ctx) {
+    const ref = this.grooveImg ?? this.grooveCutout;
+    const cutout = this.grooveCutout;
+    if (!ref || !cutout) return;
 
+    const { dx, dy, dw, dh } = this._grooveRect(ref);
     ctx.save();
-    if (glow) {
-      ctx.shadowColor = `rgba(255, 200, 60, ${glowAlpha})`;
-      ctx.shadowBlur = glowBlur;
-    }
-    this._drawGrooveLayer(ctx, this._grooveGlow, {
-      mirrorX: true,
-      alpha,
-      blend: warm ? "screen" : "source-over",
-    });
+    ctx.translate(dx + dw, dy);
+    ctx.scale(-1, 1);
+    ctx.drawImage(cutout, 0, 0, dw, dh);
     ctx.restore();
   }
 
-  /** 立体凹槽：压暗纹理 + 深浅渐变 + 内壁阴影 + 上沿高光 */
-  _paintGrooveSculpt(ctx) {
-    if (!this._grooveCutMask) return;
-
-    if (this.slabImg) {
-      ctx.save();
-      const cover = this._coverRect(this.slabImg);
-      ctx.filter = "brightness(0.38) contrast(1.18) saturate(0.75)";
-      ctx.drawImage(this.slabImg, cover.dx, cover.dy, cover.dw, cover.dh);
-      ctx.filter = "none";
-      ctx.globalCompositeOperation = "destination-in";
-      this._drawGrooveLayer(ctx, this._grooveCutMask, {
-        mirrorX: true,
-        alpha: 1,
-        blend: "source-over",
-      });
-      ctx.restore();
-    } else {
-      ctx.save();
-      const { dx, dy, dw, dh } = this._grooveRect(this.grooveImg);
-      ctx.translate(dx + dw, dy);
-      ctx.scale(-1, 1);
-      ctx.fillStyle = "rgb(22, 18, 14)";
-      ctx.fillRect(0, 0, dw, dh);
-      ctx.globalCompositeOperation = "destination-in";
-      ctx.drawImage(this._grooveCutMask, 0, 0, dw, dh);
-      ctx.restore();
-    }
-
-    if (this._grooveRelief) {
-      this._drawGrooveLayer(ctx, this._grooveRelief, {
-        mirrorX: true,
-        alpha: 0.95,
-        blend: "multiply",
-      });
-    }
-
-    if (this._grooveInnerShadow) {
-      this._drawGrooveLayer(ctx, this._grooveInnerShadow, {
-        mirrorX: true,
-        alpha: 0.82,
-        blend: "multiply",
-      });
-    }
-
-    if (this._grooveDepth) {
-      this._drawGrooveLayer(ctx, this._grooveDepth, {
-        mirrorX: true,
-        alpha: 0.65,
-        blend: "multiply",
-      });
-    }
-
-    if (this._grooveRimLight) {
-      this._drawGrooveLayer(ctx, this._grooveRimLight, {
-        mirrorX: true,
-        alpha: 0.62,
-        blend: "soft-light",
-      });
-    }
+  /** 震碎前合成石板+凹槽到离屏 canvas */
+  buildShatterSnapshot() {
+    if (!this.ctx || this._w <= 0) return;
+    this.ctx.clearRect(0, 0, this._w, this._h);
+    if (this.slabImg) this._drawSlabOnCanvas(this.ctx, this.slabImg);
+    this._drawGrooveOnCanvas(this.ctx);
   }
 
   /**
-   * @param {CanvasRenderingContext2D} ctx
-   * @param {{ cx?: number, cy?: number, r?: number }} geo
-   */
-  _drawGrooveBreathe(ctx, geo = {}) {
-    const wave = 0.5 + 0.5 * Math.sin(this._pulseT * 2.6);
-    const peak = Math.pow(wave, 2.1);
-    const alpha = 0.28 + 0.72 * peak;
-    const blur = 22 + 78 * peak;
-    const { cx, cy, r } = geo.cx != null ? geo : this._grooveGeometry();
-
-    if (this._grooveGlow) {
-      this._drawGrooveLayer(ctx, this._grooveGlow, {
-        mirrorX: true,
-        alpha: 0.28 + 0.62 * peak,
-        blend: "screen",
-      });
-      this._drawGrooveGlow(ctx, {
-        alpha: 0.48 + 0.52 * peak,
-        glow: true,
-        glowAlpha: alpha,
-        glowBlur: blur * 1.7,
-        warm: true,
-      });
-      this._drawGrooveGlow(ctx, {
-        alpha: 0.62 + 0.38 * wave,
-        glow: true,
-        glowAlpha: 0.78 + 0.22 * peak,
-        glowBlur: 18 + 32 * peak,
-        warm: true,
-      });
-      if (peak > 0.22) {
-        const hot = (peak - 0.22) / 0.78;
-        ctx.save();
-        ctx.shadowColor = `rgba(255, 248, 200, ${0.62 + 0.38 * hot})`;
-        ctx.shadowBlur = 28 + 52 * hot;
-        this._drawGrooveLayer(ctx, this._grooveGlow, {
-          mirrorX: true,
-          alpha: 0.52 + 0.48 * hot,
-          blend: "lighter",
-        });
-        ctx.restore();
-      }
-      this._drawGrooveGlow(ctx, {
-        alpha: 0.32 + 0.68 * peak,
-        glow: false,
-        warm: false,
-      });
-      return;
-    }
-
-    ctx.save();
-    ctx.strokeStyle = `rgba(255, 245, 180, ${0.42 + 0.58 * peak})`;
-    ctx.lineWidth = 3 + 4 * peak;
-    ctx.shadowColor = `rgba(255, 220, 80, ${alpha})`;
-    ctx.shadowBlur = blur;
-    this._strokeGrooveOutline(ctx, cx, cy, r, 1, false);
-    ctx.strokeStyle = `rgba(255, 255, 245, ${0.35 + 0.65 * peak})`;
-    ctx.lineWidth = 1.5 + 2.8 * peak;
-    ctx.shadowColor = `rgba(255, 255, 220, ${0.55 + 0.45 * peak})`;
-    ctx.shadowBlur = 12 + 38 * peak;
-    this._strokeGrooveOutline(ctx, cx, cy, r, 1, false);
-    ctx.restore();
-  }
-
-  /**
-   * @param {{ glowEdge?: boolean, grooveBreathe?: boolean, pulseShake?: boolean, edgeAlpha?: number, dt?: number }} opts
+   * 更新凹槽动效（CSS），不重绘全屏 canvas
+   * @param {{ glowEdge?: boolean, grooveBreathe?: boolean, pulseShake?: boolean, edgeAlpha?: number, dt?: number, includeSlab?: boolean }} opts
    */
   draw(opts = {}) {
-    const ctx = this.ctx;
-    if (!ctx || this._w <= 0) return;
-
     const {
       glowEdge = false,
       grooveBreathe = false,
       pulseShake = false,
-      edgeAlpha = 0.6,
-      dt = 0,
+      includeSlab = false,
     } = opts;
-    if (grooveBreathe || pulseShake) this._pulseT += dt;
 
-    ctx.clearRect(0, 0, this._w, this._h);
+    if (grooveBreathe || pulseShake) this._pulseT += opts.dt ?? 0;
 
-    if (this.slabImg) {
-      this._drawCoverImage(ctx, this.slabImg);
-    } else {
-      const grd = ctx.createLinearGradient(0, 0, this._w, this._h);
-      grd.addColorStop(0, "#4a4438");
-      grd.addColorStop(0.5, "#3a3530");
-      grd.addColorStop(1, "#2e2a24");
-      ctx.fillStyle = grd;
-      ctx.fillRect(0, 0, this._w, this._h);
-    }
+    if (includeSlab) this.buildShatterSnapshot();
 
-    const { cx, cy, r } = this._grooveGeometry();
-    const baseGlow = grooveBreathe ? 0.42 : 0.78;
-    const baseEdge = grooveBreathe ? 0.18 : 0.35;
+    this._applyGrooveLayout();
 
-    if (this.grooveImg && this._grooveCutMask) {
-      this._paintGrooveSculpt(ctx);
-      this._drawGrooveGlow(ctx, { alpha: baseGlow, warm: true });
-      this._drawGrooveGlow(ctx, { alpha: baseEdge, warm: false });
-    } else if (this.grooveImg) {
-      this._buildGrooveLayers();
-      if (this._grooveCutMask) {
-        this._paintGrooveSculpt(ctx);
-        this._drawGrooveGlow(ctx, { alpha: baseGlow, warm: true });
-        this._drawGrooveGlow(ctx, { alpha: baseEdge, warm: false });
-      }
-    } else {
-      this._drawProceduralGroove(ctx, cx, cy, r);
-    }
+    const el = this.grooveEl;
+    const wrap = this.grooveWrap;
+    if (!el || wrap.hidden) return;
 
-    if (grooveBreathe) {
-      this._drawGrooveBreathe(ctx, { cx, cy, r });
-    } else if (glowEdge || pulseShake) {
-      let alpha = edgeAlpha;
-      let blur = 16;
-      if (pulseShake) {
-        alpha = 0.35 + 0.45 * (0.5 + 0.5 * Math.sin(this._pulseT * 5));
-        blur = 24;
-      }
-      if (this._grooveGlow) {
-        this._drawGrooveGlow(ctx, {
-          alpha: 1,
-          glow: true,
-          glowAlpha: alpha,
-          glowBlur: blur,
-          warm: true,
-        });
-        this._drawGrooveGlow(ctx, {
-          alpha: 0.4 + alpha * 0.25,
-          glow: false,
-          warm: false,
-        });
-      } else {
-        ctx.save();
-        ctx.strokeStyle = `rgba(255, 215, 80, ${alpha})`;
-        ctx.lineWidth = 3;
-        ctx.shadowColor = `rgba(255, 200, 60, ${alpha})`;
-        ctx.shadowBlur = blur;
-        this._strokeGrooveOutline(ctx, cx, cy, r, alpha);
-        ctx.restore();
-      }
-    }
+    el.classList.toggle("groove-edge-glow", glowEdge || pulseShake);
+    wrap.classList.toggle("groove-edge-glow", glowEdge || pulseShake);
+    wrap.classList.toggle("groove-breathe", grooveBreathe);
+    wrap.classList.toggle("groove-pulse-shake", pulseShake);
   }
 
-  _drawProceduralGroove(ctx, cx, cy, r) {
-    ctx.save();
-    this._strokeGrooveOutline(ctx, cx, cy, r, 1, true);
-    ctx.clip();
-
-    const palmY = cy + r * 0.2;
-    const grad = ctx.createLinearGradient(cx, cy - r, cx, palmY + r * 0.75);
-    grad.addColorStop(0, "rgba(55, 48, 40, 0.55)");
-    grad.addColorStop(0.45, "rgba(28, 24, 20, 0.82)");
-    grad.addColorStop(1, "rgba(8, 6, 5, 0.95)");
-    ctx.fillStyle = grad;
-    ctx.fillRect(cx - r, cy - r * 1.2, r * 2, r * 2.4);
-
-    const pit = ctx.createRadialGradient(cx, cy + r * 0.15, 0, cx, cy, r * 0.95);
-    pit.addColorStop(0, "rgba(0, 0, 0, 0.55)");
-    pit.addColorStop(0.65, "rgba(0, 0, 0, 0.2)");
-    pit.addColorStop(1, "rgba(0, 0, 0, 0)");
-    ctx.fillStyle = pit;
-    ctx.fillRect(cx - r, cy - r * 1.2, r * 2, r * 2.4);
-    ctx.restore();
-
-    ctx.save();
-    ctx.strokeStyle = "rgba(0, 0, 0, 0.55)";
-    ctx.lineWidth = 5;
-    ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
-    ctx.shadowBlur = 6;
-    ctx.shadowOffsetY = 2;
-    this._strokeGrooveOutline(ctx, cx, cy, r, 1, false);
-    ctx.restore();
-
-    ctx.save();
-    ctx.strokeStyle = "rgba(255, 210, 90, 0.75)";
-    ctx.lineWidth = 2.5;
-    ctx.shadowColor = "rgba(255, 190, 50, 0.65)";
-    ctx.shadowBlur = 14;
-    this._strokeGrooveOutline(ctx, cx, cy, r, 1, false);
-    ctx.restore();
-
-    ctx.save();
-    ctx.translate(-1.5, -2);
-    ctx.strokeStyle = "rgba(255, 248, 210, 0.35)";
-    ctx.lineWidth = 1.5;
-    ctx.shadowBlur = 0;
-    this._strokeGrooveOutline(ctx, cx, cy, r, 1, false);
-    ctx.restore();
-  }
-
-  /** 左手张开（自拍镜像：拇指在右、小指在左） */
-  _strokeGrooveOutline(ctx, cx, cy, r, _a, fill = false) {
-    const tips = [
-      [cx + r * 0.75, cy + r * 0.55],
-      [cx + r * 0.55, cy - r * 0.85],
-      [cx, cy - r * 1.05],
-      [cx - r * 0.55, cy - r * 0.85],
-      [cx - r * 0.75, cy + r * 0.55],
-    ];
-    const palm = [
-      [cx + r * 0.85, cy + r * 0.2],
-      [cx - r * 0.85, cy + r * 0.2],
-      [cx - r * 0.65, cy + r * 0.75],
-      [cx + r * 0.65, cy + r * 0.75],
-    ];
-    ctx.beginPath();
-    ctx.moveTo(palm[0][0], palm[0][1]);
-    for (const [x, y] of tips) ctx.lineTo(x, y);
-    ctx.lineTo(palm[1][0], palm[1][1]);
-    ctx.lineTo(palm[2][0], palm[2][1]);
-    ctx.lineTo(palm[3][0], palm[3][1]);
-    ctx.closePath();
-    if (fill) ctx.fill();
-    ctx.stroke();
-  }
-
-  /** 指尖锚点与凹槽几何同步（供对齐判定） */
-  _tipAnchors(cx, cy, r) {
+  getGrooveAnchors(stageW = this._w, stageH = this._h) {
+    const { cx, cy, r } = this._grooveGeometry(stageW, stageH);
     return {
       thumb: { x: cx + r * 0.75, y: cy + r * 0.55 },
       index: { x: cx + r * 0.55, y: cy - r * 0.85 },
@@ -690,11 +301,6 @@ export class StoneSlab {
       ring: { x: cx - r * 0.55, y: cy - r * 0.85 },
       pinky: { x: cx - r * 0.75, y: cy + r * 0.55 },
     };
-  }
-
-  getGrooveAnchors(stageW = this._w, stageH = this._h) {
-    const { cx, cy, r } = this._grooveGeometry(stageW, stageH);
-    return this._tipAnchors(cx, cy, r);
   }
 
   getPuppetCenter(stageW = this._w, stageH = this._h) {
@@ -706,16 +312,17 @@ export class StoneSlab {
     return this._loadPromise;
   }
 
-  /** 仅隐藏石板绘制层，不影响震碎 canvas */
   hideSlab() {
-    this.canvas.style.visibility = "hidden";
+    this.bgEl.style.visibility = "hidden";
+    this.grooveWrap.style.visibility = "hidden";
   }
 
   showSlab() {
-    this.canvas.style.visibility = "";
+    this.bgEl.style.visibility = "";
+    this.grooveWrap.style.visibility = "";
+    if (this.grooveCutout) this.grooveWrap.hidden = false;
   }
 
-  /** 震碎动画结束后隐藏整个石板层 */
   hide() {
     this.hideSlab();
     this.mount.classList.add("stone-hidden");

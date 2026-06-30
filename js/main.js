@@ -400,6 +400,9 @@ function enterFreePhase() {
 function revealStageBackground() {
   els.stage?.classList.remove("stage-hidden");
   els.stage?.classList.add("stage-visible", "stage-forest-bloom");
+  if (els.stageStone) {
+    els.stageStone.style.backgroundColor = "transparent";
+  }
   requestAnimationFrame(() => {
     els.stage?.classList.add("stage-forest-bloom-done");
   });
@@ -440,7 +443,7 @@ function startShatter() {
 
   beginShatterPuppetControl();
 
-  stoneSlab.draw({});
+  stoneSlab.draw({ includeSlab: true });
   const rect = els.stageStone.getBoundingClientRect();
 
   shatterEffect.resize(rect.width, rect.height);
@@ -475,7 +478,9 @@ function startShatter() {
 function initBindingPhase() {
   if (!els.stageStone || !els.shatterCanvas) return;
 
-  stoneSlab = new StoneSlab(els.stageStone);
+  if (!stoneSlab) {
+    stoneSlab = new StoneSlab(els.stageStone);
+  }
   stoneSlab.resize();
   shatterEffect = new ShatterEffect(els.shatterCanvas, enterFreePhase);
   shatterStarted = false;
@@ -505,6 +510,10 @@ function initBindingPhase() {
   els.stage?.classList.add("stage-hidden");
   els.stage?.classList.remove("stage-visible");
   els.stageStone.classList.remove("stone-hidden");
+  if (els.stageStone) {
+    els.stageStone.style.backgroundColor = "";
+  }
+  stoneSlab.showSlab();
   if (els.bindingHint) {
     els.bindingHint.hidden = false;
     els.bindingHint.textContent = "将左手放入凹槽，绑定皮影";
@@ -869,6 +878,21 @@ async function startExperience() {
 }
 
 els.startBtn?.addEventListener("click", startExperience);
+
+/** 开始界面背后石板 + 手印：页面加载即定位，避免未初始化时拉伸错位 */
+function initStoneBackdrop() {
+  if (!els.stageStone) return;
+  if (!stoneSlab) {
+    stoneSlab = new StoneSlab(els.stageStone);
+  }
+  stoneSlab.resize();
+  void stoneSlab.ready().then(() => {
+    stoneSlab?.resize();
+    stoneSlab?.draw({});
+  });
+}
+
+initStoneBackdrop();
 
 window.addEventListener("pagehide", () => {
   running = false;

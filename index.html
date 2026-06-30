@@ -9,6 +9,27 @@
   <body>
     <div id="app">
       <div id="stage-stone" class="stage-stone" aria-hidden="true">
+        <img
+          class="stone-slab-bg"
+          src="assets/bg/stone/slab.jpg?v=4"
+          alt=""
+          draggable="false"
+          decoding="async"
+        />
+        <div class="stone-groove-wrap" aria-hidden="true">
+          <img
+            class="stone-groove-overlay"
+            src="assets/bg/stone/hand_groove_cutout.png?v=16"
+            alt=""
+            draggable="false"
+            decoding="async"
+          />
+        </div>
+        <canvas
+          class="stone-slab-composite"
+          hidden
+          aria-hidden="true"
+        ></canvas>
         <canvas id="stone-shatter-canvas" class="stone-shatter-canvas" hidden></canvas>
       </div>
 
